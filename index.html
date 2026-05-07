@@ -43,8 +43,6 @@
   h1 span { color: var(--accent); }
   .subtitle { color: var(--muted); margin-top: 10px; font-size: 13px; }
 
-  
-
   .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
   .tab-btn {
     padding: 10px 20px; font-family: 'DM Mono', monospace; font-size: 12px;
@@ -245,8 +243,6 @@
     border-radius: 2px; font-size: 10px; color: var(--muted); margin-left: 8px;
   }
 
-
-  
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--surface); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -513,10 +509,7 @@ async function generate() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: cfg.prompt,
-          input: input
-        })
+        body: JSON.stringify({ prompt: cfg.prompt, input: input })
       });
       const data = await res.json();
       const text = data.content?.[0]?.text || 'エラーが発生しました';
@@ -570,6 +563,7 @@ function postToX(text) {
   window.open(`https://twitter.com/intent/tweet?text=${encoded}`, '_blank');
 }
 
+// ✅ 修正済み: /api/buffer プロキシ経由でBuffer APIを呼び出す
 async function postToBuffer(text, btn) {
   if (!settings.bufferApiKey || !settings.bufferChannelId) {
     alert('設定タブでBuffer APIキーとChannel IDを設定してください');
@@ -577,10 +571,14 @@ async function postToBuffer(text, btn) {
   }
   btn.textContent = '送信中...'; btn.disabled = true;
   try {
-    const res = await fetch('https://api.bufferapp.com/1/updates/create.json', {
+    const res = await fetch('/api/buffer', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ access_token: settings.bufferApiKey, 'profile_ids[]': settings.bufferChannelId, text })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: settings.bufferApiKey,
+        channelId: settings.bufferChannelId,
+        text: text
+      })
     });
     const data = await res.json();
     if (data.success || data.updates) {
@@ -589,10 +587,37 @@ async function postToBuffer(text, btn) {
       setTimeout(() => { btn.textContent = '📅 Buffer'; btn.disabled = false; }, 3000);
     } else {
       btn.textContent = 'エラー'; btn.disabled = false;
-      alert('Bufferエラー: ' + (data.message || '不明'));
+      alert('Bufferエラー: ' + (data.message || JSON.stringify(data)));
     }
   } catch (err) {
     btn.textContent = 'エラー'; btn.disabled = false;
+    alert('通信エラー: ' + err.message);
+  }
+}
+
+// ✅ 修正済み: /api/buffer プロキシ経由で接続テスト
+async function testBuffer() {
+  const key = document.getElementById('bufferApiKey').value;
+  const channelId = document.getElementById('bufferChannelId').value;
+  if (!key) { alert('APIキーを入力してください'); return; }
+  if (!channelId) { alert('Channel IDを入力してください'); return; }
+  try {
+    const res = await fetch('/api/buffer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: key,
+        channelId: channelId,
+        text: '【接続テスト】Decimo Buffer連携確認'
+      })
+    });
+    const data = await res.json();
+    if (data.success || data.updates) {
+      showToast('✓ Buffer接続成功！キューに追加されました');
+    } else {
+      alert('接続失敗: ' + (data.message || JSON.stringify(data)));
+    }
+  } catch (err) {
     alert('通信エラー: ' + err.message);
   }
 }
@@ -715,17 +740,6 @@ function saveSettings() {
   localStorage.setItem('snsgen_settings', JSON.stringify(settings));
 }
 
-async function testBuffer() {
-  const key = document.getElementById('bufferApiKey').value;
-  if (!key) { alert('APIキーを入力してください'); return; }
-  try {
-    const res = await fetch(`https://api.bufferapp.com/1/user.json?access_token=${key}`);
-    const data = await res.json();
-    if (data.id) { showToast(`✓ Buffer接続成功: ${data.name || data.id}`); }
-    else { alert('接続失敗: ' + (data.message || '不明')); }
-  } catch (err) { alert('通信エラー: ' + err.message); }
-}
-
 function setLoading(on) {
   const btn = document.getElementById('generateBtn');
   btn.disabled = on;
@@ -741,33 +755,6 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-
-
-function saveApiKey() {
-  const val = document.getElementById('apikeyInput').value.trim();
-  if (!val) { alert('APIキーを入力してください'); return; }
-  if (!val.startsWith('sk-ant-')) { alert('正しいAnthropicのAPIキーを入力してください（sk-ant- で始まります）'); return; }
-  localStorage.setItem('snsgen_apikey', val);
-  setApiKeyStatus(true);
-  showToast('APIキーを保存しました ✓');
-}
-
-function setApiKeyStatus(hasKey) {
-  const banner = document.getElementById('apikeyBanner');
-  const status = document.getElementById('apikeyStatus');
-  if (hasKey) {
-    banner.classList.add('has-key');
-    status.textContent = '✓ APIキー設定済';
-  } else {
-    banner.classList.remove('has-key');
-    status.textContent = '🔑 APIキー';
-  }
-}
-
-function getApiKey() {
-  return localStorage.getItem('snsgen_apikey') || '';
 }
 </script>
 </body>

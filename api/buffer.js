@@ -26,16 +26,17 @@ export default async function handler(req) {
       });
     }
 
-    const response = await fetch('https://api.buffer.com/1/updates/create.json', {
+    const params = new URLSearchParams();
+    params.append('access_token', apiKey);
+    params.append('profile_ids[]', channelId);
+    params.append('text', text);
+
+    const response = await fetch('https://api.bufferapp.com/1/updates/create.json', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Bearer ${apiKey}`,
       },
-      body: new URLSearchParams({
-        'profile_ids[]': channelId,
-        'text': text,
-      })
+      body: params.toString()
     });
 
     const data = await response.json();

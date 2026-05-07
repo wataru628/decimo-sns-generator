@@ -43,31 +43,7 @@
   h1 span { color: var(--accent); }
   .subtitle { color: var(--muted); margin-top: 10px; font-size: 13px; }
 
-  /* API Key Banner */
-  .apikey-banner {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 2px; padding: 20px 24px; margin-bottom: 24px;
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  }
-  .apikey-banner.has-key { border-color: #2a4a2a; background: #0d150d; }
-  .apikey-banner-label { font-size: 12px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
-  .apikey-banner.has-key .apikey-banner-label { color: #6bff6b; }
-  .apikey-input-wrap { flex: 1; display: flex; gap: 8px; min-width: 200px; }
-  .apikey-input {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
-    color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px;
-    padding: 8px 12px; outline: none; transition: border-color 0.2s;
-  }
-  .apikey-input:focus { border-color: var(--accent); }
-  .apikey-save-btn {
-    padding: 8px 16px; background: var(--accent); color: #000; border: none;
-    border-radius: 2px; font-family: 'DM Mono', monospace; font-size: 12px;
-    font-weight: 500; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
-  }
-  .apikey-save-btn:hover { background: #d4ff40; }
-  .apikey-help { font-size: 11px; color: var(--muted); width: 100%; }
-  .apikey-help a { color: var(--accent3); text-decoration: none; }
-  .apikey-help a:hover { text-decoration: underline; }
+  
 
   .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
   .tab-btn {
@@ -270,31 +246,7 @@
   }
 
 
-  /* API Key Banner */
-  .apikey-banner {
-    background: var(--surface); border: 1px solid var(--accent3);
-    border-radius: 2px; padding: 20px 24px; margin-bottom: 24px;
-    display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
-  }
-  .apikey-banner.has-key { border-color: #2a4a2a; background: #0d150d; }
-  .apikey-label { font-size: 12px; color: var(--accent3); flex-shrink: 0; padding-top: 8px; white-space: nowrap; }
-  .apikey-banner.has-key .apikey-label { color: #6bff6b; }
-  .apikey-input-wrap { flex: 1; display: flex; gap: 8px; min-width: 200px; }
-  .apikey-input {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
-    color: var(--text); font-family: "DM Mono", monospace; font-size: 12px;
-    padding: 8px 12px; outline: none; transition: border-color 0.2s;
-  }
-  .apikey-input:focus { border-color: var(--accent); }
-  .apikey-save-btn {
-    padding: 8px 16px; background: var(--accent); color: #000; border: none;
-    border-radius: 2px; font-family: "DM Mono", monospace; font-size: 12px;
-    font-weight: 500; cursor: pointer; white-space: nowrap;
-  }
-  .apikey-save-btn:hover { background: #d4ff40; }
-  .apikey-help { font-size: 11px; color: var(--muted); width: 100%; line-height: 1.7; }
-  .apikey-help a { color: var(--accent3); text-decoration: none; }
-  .apikey-help a:hover { text-decoration: underline; }
+  
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--surface); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -310,20 +262,6 @@
     <h1>チャットを<br><span>投稿文</span>に変換</h1>
     <p class="subtitle">Claude チャット → SNS投稿文を自動生成 · 履歴保存 · X / Buffer 投稿連携</p>
   </header>
-
-
-  <!-- API Key Banner -->
-  <div class="apikey-banner" id="apikeyBanner">
-    <span class="apikey-label" id="apikeyStatus">🔑 APIキー</span>
-    <div class="apikey-input-wrap">
-      <input class="apikey-input" id="apikeyInput" type="password" placeholder="sk-ant-api03-...">
-      <button class="apikey-save-btn" onclick="saveApiKey()">保存</button>
-    </div>
-    <div class="apikey-help">
-      Anthropic APIキーを入力してください。<a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> で無料取得できます。キーはブラウザのローカルストレージにのみ保存され、外部には送信されません。
-    </div>
-  </div>
-
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('generate')">✦ 生成</button>
     <button class="tab-btn" onclick="switchTab('import')">⬆ JSONインポート</button>
@@ -455,7 +393,6 @@ try { settings = JSON.parse(localStorage.getItem('snsgen_settings') || '{}'); } 
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   renderHistory();
-  initApiKey();
 
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -573,13 +510,12 @@ async function generate() {
     const cfg = PLATFORM_CONFIG[type];
     const card = cards[type];
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: `${cfg.prompt}\n\n---\n\n${input}` }]
+          prompt: cfg.prompt,
+          input: input
         })
       });
       const data = await res.json();
@@ -807,14 +743,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ===== API KEY =====
-function initApiKey() {
-  const saved = localStorage.getItem('snsgen_apikey') || '';
-  if (saved) {
-    document.getElementById('apikeyInput').value = saved;
-    setApiKeyStatus(true);
-  }
-}
+
 
 function saveApiKey() {
   const val = document.getElementById('apikeyInput').value.trim();

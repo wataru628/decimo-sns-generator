@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNS Post Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #c8f135;
+    --accent2: #ff6b35;
+    --accent3: #5b8dee;
+    --text: #f0f0f0;
+    --muted: #666;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  .container { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { margin-bottom: 40px; }
+  .tag { font-size: 11px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; }
+  h1 { font-family: 'Syne', sans-serif; font-size: clamp(28px, 5vw, 48px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-top: 10px; font-size: 13px; }
+
+  /* API Key Banner */
+  .apikey-banner {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 2px; padding: 20px 24px; margin-bottom: 24px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .apikey-banner.has-key { border-color: #2a4a2a; background: #0d150d; }
+  .apikey-banner-label { font-size: 12px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+  .apikey-banner.has-key .apikey-banner-label { color: #6bff6b; }
+  .apikey-input-wrap { flex: 1; display: flex; gap: 8px; min-width: 200px; }
+  .apikey-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px;
+    padding: 8px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .apikey-input:focus { border-color: var(--accent); }
+  .apikey-save-btn {
+    padding: 8px 16px; background: var(--accent); color: #000; border: none;
+    border-radius: 2px; font-family: 'DM Mono', monospace; font-size: 12px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .apikey-save-btn:hover { background: #d4ff40; }
+  .apikey-help { font-size: 11px; color: var(--muted); width: 100%; }
+  .apikey-help a { color: var(--accent3); text-decoration: none; }
+  .apikey-help a:hover { text-decoration: underline; }
+
+  .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    padding: 10px 20px; font-family: 'DM Mono', monospace; font-size: 12px;
+    background: transparent; border: none; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-size: 11px; letter-spacing: 0.15em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 2px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 13px; line-height: 1.7; padding: 16px; resize: vertical;
+    min-height: 160px; outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .import-zone {
+    border: 2px dashed var(--border); border-radius: 2px; padding: 32px;
+    text-align: center; cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .import-zone:hover, .import-zone.dragover { border-color: var(--accent); background: rgba(200, 241, 53, 0.03); }
+  .import-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .import-zone-icon { font-size: 28px; margin-bottom: 10px; }
+  .import-zone-text { font-size: 13px; color: var(--muted); line-height: 1.8; }
+  .import-zone-text span { color: var(--accent); }
+
+  .chat-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+  .chat-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .chat-item:hover { border-color: var(--accent); }
+  .chat-item.selected { border-color: var(--accent); background: rgba(200, 241, 53, 0.05); }
+  .chat-item-check { width: 16px; height: 16px; border: 1px solid var(--border); border-radius: 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .chat-item.selected .chat-item-check { background: var(--accent); border-color: var(--accent); color: #000; content: '✓'; }
+  .chat-item-title { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item-date { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+  .options-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    padding: 6px 14px; border: 1px solid var(--border); border-radius: 2px;
+    font-size: 12px; cursor: pointer; transition: all 0.15s; background: transparent;
+    color: var(--muted); font-family: 'DM Mono', monospace;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 500; }
+
+  .btn-primary {
+    width: 100%; padding: 15px; background: var(--accent); color: #000; border: none;
+    border-radius: 2px; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
+    letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:hover { background: #d4ff40; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    padding: 8px 16px; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px;
+    border-radius: 2px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-x {
+    padding: 5px 12px; background: #000; border: 1px solid #444;
+    color: #fff; font-family: 'DM Mono', monospace; font-size: 11px;
+    border-radius: 2px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-x:hover { background: #1a1a1a; border-color: #888; }
+  .btn-x:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-buffer {
+    padding: 5px 12px; background: transparent; border: 1px solid var(--accent3);
+    color: var(--accent3); font-family: 'DM Mono', monospace; font-size: 11px;
+    border-radius: 2px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-buffer:hover { background: rgba(91, 141, 238, 0.1); }
+  .btn-buffer:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid #000; border-top-color: transparent;
+    border-radius: 50%; animation: spin 0.7s linear infinite; display: none;
+  }
+  .generating .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .results { display: none; flex-direction: column; gap: 20px; }
+  .results.visible { display: flex; }
+
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+    overflow: hidden; animation: fadeUp 0.4s ease both;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .result-card:nth-child(2) { animation-delay: 0.08s; }
+  .result-card:nth-child(3) { animation-delay: 0.16s; }
+  .result-card:nth-child(4) { animation-delay: 0.24s; }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface2);
+    gap: 10px; flex-wrap: wrap;
+  }
+  .card-platform { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-x { background: var(--text); }
+  .dot-note { background: #41c9a0; }
+  .dot-gumroad { background: var(--accent2); }
+
+  .card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .copy-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 12px;
+    border-radius: 2px; cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+  .copy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .card-body { padding: 20px; }
+  .result-text { font-size: 13px; line-height: 1.8; white-space: pre-wrap; color: var(--text); }
+  .char-count { margin-top: 10px; font-size: 11px; color: var(--muted); text-align: right; }
+  .char-count.over { color: var(--accent2); }
+
+  .history-list { display: flex; flex-direction: column; gap: 12px; }
+  .history-item {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; cursor: pointer; transition: background 0.15s;
+  }
+  .history-header:hover { background: rgba(255,255,255,0.02); }
+  .history-title { font-size: 13px; font-family: 'Syne', sans-serif; font-weight: 700; flex: 1; margin-right: 12px; }
+  .history-meta { font-size: 11px; color: var(--muted); display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .history-body { padding: 0 16px 16px; display: none; }
+  .history-body.open { display: block; }
+  .history-post { margin-bottom: 10px; padding: 12px; background: var(--surface); border-radius: 2px; border: 1px solid var(--border); }
+  .history-post-label { font-size: 10px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .history-post-text { font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
+  .history-post-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px; }
+  .empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+
+  .error-msg {
+    background: #1a0a0a; border: 1px solid #442222; border-radius: 2px;
+    padding: 14px 18px; color: #ff6b6b; font-size: 13px; display: none; margin-bottom: 16px;
+  }
+  .error-msg.visible { display: block; }
+
+  .success-toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #000;
+    padding: 12px 20px; border-radius: 2px; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 13px; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 100;
+  }
+  .success-toast.show { transform: translateY(0); opacity: 1; }
+
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+
+  .setting-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .setting-label { font-size: 12px; color: var(--muted); min-width: 130px; }
+  .setting-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 12px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .setting-input:focus { border-color: var(--accent); }
+  .setting-note { font-size: 11px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+
+  .badge {
+    display: inline-flex; align-items: center; padding: 2px 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 2px; font-size: 10px; color: var(--muted); margin-left: 8px;
+  }
+
+
+  /* API Key Banner */
+  .apikey-banner {
+    background: var(--surface); border: 1px solid var(--accent3);
+    border-radius: 2px; padding: 20px 24px; margin-bottom: 24px;
+    display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  }
+  .apikey-banner.has-key { border-color: #2a4a2a; background: #0d150d; }
+  .apikey-label { font-size: 12px; color: var(--accent3); flex-shrink: 0; padding-top: 8px; white-space: nowrap; }
+  .apikey-banner.has-key .apikey-label { color: #6bff6b; }
+  .apikey-input-wrap { flex: 1; display: flex; gap: 8px; min-width: 200px; }
+  .apikey-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    color: var(--text); font-family: "DM Mono", monospace; font-size: 12px;
+    padding: 8px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .apikey-input:focus { border-color: var(--accent); }
+  .apikey-save-btn {
+    padding: 8px 16px; background: var(--accent); color: #000; border: none;
+    border-radius: 2px; font-family: "DM Mono", monospace; font-size: 12px;
+    font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .apikey-save-btn:hover { background: #d4ff40; }
+  .apikey-help { font-size: 11px; color: var(--muted); width: 100%; line-height: 1.7; }
+  .apikey-help a { color: var(--accent3); text-decoration: none; }
+  .apikey-help a:hover { text-decoration: underline; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="success-toast" id="toast"></div>
+
+<div class="container">
+  <header>
+    <div class="tag">// SNS Post Generator v2</div>
+    <h1>チャットを<br><span>投稿文</span>に変換</h1>
+    <p class="subtitle">Claude チャット → SNS投稿文を自動生成 · 履歴保存 · X / Buffer 投稿連携</p>
+  </header>
+
+
+  <!-- API Key Banner -->
+  <div class="apikey-banner" id="apikeyBanner">
+    <span class="apikey-label" id="apikeyStatus">🔑 APIキー</span>
+    <div class="apikey-input-wrap">
+      <input class="apikey-input" id="apikeyInput" type="password" placeholder="sk-ant-api03-...">
+      <button class="apikey-save-btn" onclick="saveApiKey()">保存</button>
+    </div>
+    <div class="apikey-help">
+      Anthropic APIキーを入力してください。<a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> で無料取得できます。キーはブラウザのローカルストレージにのみ保存され、外部には送信されません。
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('generate')">✦ 生成</button>
+    <button class="tab-btn" onclick="switchTab('import')">⬆ JSONインポート</button>
+    <button class="tab-btn" onclick="switchTab('history')">◷ 履歴</button>
+    <button class="tab-btn" onclick="switchTab('settings')">⚙ 設定</button>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="tab-panel active" id="tab-generate">
+    <div class="card">
+      <div class="section-label">チャット内容をペースト</div>
+      <textarea id="chatInput" placeholder="Claudeとのチャット内容をここにペーストしてください。
+・作ったサービスの説明
+・開発中のやり取り
+・アイデアのメモ など何でもOK
+
+※ JSONインポートタブからチャット履歴ファイルを読み込んで自動入力もできます"></textarea>
+
+      <div style="margin-top: 20px;">
+        <div class="section-label">生成する投稿</div>
+        <div class="options-row">
+          <button class="chip active" data-type="x_hook">𝕏 フック投稿</button>
+          <button class="chip active" data-type="x_thread">𝕏 スレッド</button>
+          <button class="chip active" data-type="note">note 導入文</button>
+          <button class="chip active" data-type="gumroad">Gumroad 商品説明</button>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="generateBtn" onclick="generate()" style="margin-top: 20px;">
+        <span class="spinner" id="spinner"></span>
+        <span id="btnText">投稿文を生成する</span>
+      </button>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="results" id="results">
+      <div class="results-header">
+        <div class="section-label" style="flex:1;margin-bottom:0;">生成結果</div>
+        <button class="btn-secondary" onclick="generate()">再生成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORT -->
+  <div class="tab-panel" id="tab-import">
+    <div class="card">
+      <div class="section-label">チャット履歴 JSON をインポート</div>
+      <div class="import-zone" id="importZone">
+        <input type="file" accept=".json" id="jsonFileInput" onchange="handleJsonFile(this.files[0])">
+        <div class="import-zone-icon">📂</div>
+        <div class="import-zone-text">
+          JSONファイルをドラッグ&ドロップ<br>
+          または <span>クリックしてファイルを選択</span>
+        </div>
+      </div>
+      <div style="margin-top: 16px; font-size: 11px; color: var(--muted); line-height: 2;">
+        <strong style="color: var(--text);">取得方法：</strong><br>
+        claude.ai → 左下のイニシャル → Settings → Privacy → Export data<br>
+        ダウンロードした zip を展開 → <code style="color:var(--accent)">conversations.json</code> を選択
+      </div>
+    </div>
+
+    <div class="card" id="chatListCard" style="display:none;">
+      <div class="section-label">チャットを選択 <span class="badge" id="chatCount">0件</span></div>
+      <div class="chat-list" id="chatList"></div>
+      <button class="btn-primary" onclick="loadSelectedChat()" style="margin-top: 16px;">
+        選択したチャットを生成タブに読み込む
+      </button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="tab-panel" id="tab-history">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div class="section-label" style="margin-bottom:0; flex:1;">過去の生成履歴</div>
+      <button class="btn-secondary" onclick="clearHistory()">履歴を消去</button>
+    </div>
+    <div id="historyContainer"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="card">
+      <div class="section-label">X (Twitter) 連携</div>
+      <p class="setting-note">「Xで投稿」ボタンを押すと投稿文をセットした状態でXの投稿画面を新しいタブで開きます。（追加設定不要）</p>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Buffer 連携</div>
+      <p class="setting-note">Buffer APIキーを設定すると、生成した投稿を直接Bufferのキューに追加できます。</p>
+      <div class="setting-row">
+        <span class="setting-label">Buffer APIキー</span>
+        <input class="setting-input" id="bufferApiKey" type="password" placeholder="1/..." oninput="saveSettings()">
+      </div>
+      <p class="setting-note">取得：buffer.com → Settings → API → Access Token</p>
+      <div class="setting-row">
+        <span class="setting-label">Channel ID</span>
+        <input class="setting-input" id="bufferChannelId" placeholder="Xアカウントのチャンネルid" oninput="saveSettings()">
+      </div>
+      <p class="setting-note">取得：buffer.com → Channels → URLの末尾のID</p>
+      <button class="btn-secondary" onclick="testBuffer()">接続テスト</button>
+    </div>
+
+    <div class="card">
+      <div class="section-label">生成設定</div>
+      <div class="setting-row">
+        <span class="setting-label">自動保存</span>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+          <input type="checkbox" id="autoSave" onchange="saveSettings()" style="accent-color:var(--accent);" checked>
+          生成結果を自動的に履歴に保存する
+        </label>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ACTIVE_CHIPS = new Set(['x_hook','x_thread','note','gumroad']);
+let importedChats = [];
+let selectedChatIdx = -1;
+let history = [];
+let settings = {};
+
+try { history = JSON.parse(localStorage.getItem('snsgen_history') || '[]'); } catch(e) { history = []; }
+try { settings = JSON.parse(localStorage.getItem('snsgen_settings') || '{}'); } catch(e) { settings = {}; }
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  renderHistory();
+  initApiKey();
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.type;
+      if (ACTIVE_CHIPS.has(t)) { ACTIVE_CHIPS.delete(t); chip.classList.remove('active'); }
+      else { ACTIVE_CHIPS.add(t); chip.classList.add('active'); }
+    });
+  });
+
+  const zone = document.getElementById('importZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleJsonFile(e.dataTransfer.files[0]);
+  });
+});
+
+function switchTab(name) {
+  ['generate','import','history','settings'].forEach((n, i) => {
+    document.querySelectorAll('.tab-btn')[i].classList.toggle('active', n === name);
+    document.getElementById('tab-' + n).classList.toggle('active', n === name);
+  });
+  if (name === 'history') renderHistory();
+}
+
+const PLATFORM_CONFIG = {
+  x_hook: {
+    label: '𝕏 フック投稿', dotClass: 'dot-x', maxChars: 280, isX: true,
+    prompt: `以下のチャット内容をもとに、Xに投稿するフック投稿文を日本語で作成してください。
+- 1ツイート（280文字以内）
+- 最初の1行で思わず読みたくなるフックを作る
+- 「AIで○○を作った」という体験談スタイル
+- 末尾にGumroadへ誘導するCTA（例：「→ 詳細はプロフのリンクから」）
+- ハッシュタグを2〜3個
+本文のみ出力し、説明や前置きは不要。`
+  },
+  x_thread: {
+    label: '𝕏 スレッド（3投稿）', dotClass: 'dot-x', maxChars: null, isX: true,
+    prompt: `以下のチャット内容をもとに、Xのスレッド投稿文を日本語で作成してください。
+- 3ツイートのスレッド形式
+- 1投稿目：フック（何を作ったか・なぜ面白いか）
+- 2投稿目：具体的な中身・使い方・特徴
+- 3投稿目：締め＋Gumroad誘導CTA
+- 各投稿は「1/3」「2/3」「3/3」で区切る
+- 各投稿280文字以内
+本文のみ出力し、説明や前置きは不要。`
+  },
+  note: {
+    label: 'note 導入文', dotClass: 'dot-note', maxChars: null, isX: false,
+    prompt: `以下のチャット内容をもとに、noteの記事導入文を日本語で作成してください。
+- 300〜400文字程度
+- 「なぜこれを作ろうと思ったか」という動機から始める
+- 読者が「自分にも関係ある」と感じるような共感ポイント
+- 記事の続きを読みたくなるような終わり方
+本文のみ出力し、説明や前置きは不要。`
+  },
+  gumroad: {
+    label: 'Gumroad 商品説明', dotClass: 'dot-gumroad', maxChars: null, isX: false,
+    prompt: `以下のチャット内容をもとに、Gumroadの商品説明文を日本語で作成してください。
+- 200〜350文字程度
+- 冒頭で「誰のための商品か」を明示
+- 具体的に何ができるか・何が解決されるか
+- 「AIで作った」という点を自然にアピール
+- 購入を後押しするシンプルなCTA
+- 絵文字を適度に使って読みやすく
+本文のみ出力し、説明や前置きは不要。`
+  }
+};
+
+async function generate() {
+  const input = document.getElementById('chatInput').value.trim();
+  if (!input) { showError('チャット内容をペーストしてください'); return; }
+  if (ACTIVE_CHIPS.size === 0) { showError('投稿タイプを1つ以上選んでください'); return; }
+  hideError();
+  setLoading(true);
+
+  const resultsEl = document.getElementById('results');
+  resultsEl.innerHTML = `<div class="results-header">
+    <div class="section-label" style="flex:1;margin-bottom:0;">生成結果</div>
+    <button class="btn-secondary" onclick="generate()">再生成</button>
+  </div>`;
+  resultsEl.classList.remove('visible');
+
+  const types = [...ACTIVE_CHIPS];
+  const cards = {};
+  const generated = {};
+  const hasBuffer = settings.bufferApiKey && settings.bufferChannelId;
+
+  types.forEach((type, i) => {
+    const cfg = PLATFORM_CONFIG[type];
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-platform"><div class="platform-dot ${cfg.dotClass}"></div>${cfg.label}</div>
+        <div class="card-actions">
+          ${cfg.isX ? `<button class="btn-x post-x-btn" disabled>𝕏 Xで投稿</button>` : ''}
+          ${cfg.isX && hasBuffer ? `<button class="btn-buffer post-buf-btn" disabled>📅 Buffer</button>` : ''}
+          <button class="copy-btn copy-main-btn" disabled>コピー</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="result-text" style="color:var(--muted)">生成中...</div>
+        ${cfg.maxChars ? `<div class="char-count">- / ${cfg.maxChars}文字</div>` : ''}
+      </div>`;
+    resultsEl.appendChild(card);
+    cards[type] = card;
+  });
+
+  resultsEl.classList.add('visible');
+
+  await Promise.all(types.map(async (type) => {
+    const cfg = PLATFORM_CONFIG[type];
+    const card = cards[type];
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: `${cfg.prompt}\n\n---\n\n${input}` }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || 'エラーが発生しました';
+      generated[type] = text;
+
+      card.querySelector('.result-text').style.color = '';
+      card.querySelector('.result-text').textContent = text;
+
+      const copyBtn = card.querySelector('.copy-main-btn');
+      copyBtn.disabled = false;
+      copyBtn.onclick = () => copyAndToast(text, copyBtn);
+
+      const xBtn = card.querySelector('.post-x-btn');
+      if (xBtn) { xBtn.disabled = false; xBtn.onclick = () => postToX(text); }
+
+      const bufBtn = card.querySelector('.post-buf-btn');
+      if (bufBtn) { bufBtn.disabled = false; bufBtn.onclick = () => postToBuffer(text, bufBtn); }
+
+      if (cfg.maxChars) {
+        const countEl = card.querySelector('.char-count');
+        countEl.textContent = `${text.length} / ${cfg.maxChars}文字`;
+        if (text.length > cfg.maxChars) countEl.classList.add('over');
+      }
+    } catch (err) {
+      card.querySelector('.result-text').textContent = 'エラー: ' + err.message;
+    }
+  }));
+
+  setLoading(false);
+
+  if (settings.autoSave !== false && Object.keys(generated).length > 0) {
+    const title = input.slice(0, 60) + (input.length > 60 ? '...' : '');
+    history.unshift({ id: Date.now(), title, date: new Date().toLocaleDateString('ja-JP'), posts: generated });
+    if (history.length > 50) history.pop();
+    localStorage.setItem('snsgen_history', JSON.stringify(history));
+    showToast('履歴に保存しました');
+  }
+}
+
+function copyAndToast(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピー済'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    showToast('コピーしました');
+  });
+}
+
+function postToX(text) {
+  const encoded = encodeURIComponent(text.slice(0, 280));
+  window.open(`https://twitter.com/intent/tweet?text=${encoded}`, '_blank');
+}
+
+async function postToBuffer(text, btn) {
+  if (!settings.bufferApiKey || !settings.bufferChannelId) {
+    alert('設定タブでBuffer APIキーとChannel IDを設定してください');
+    switchTab('settings'); return;
+  }
+  btn.textContent = '送信中...'; btn.disabled = true;
+  try {
+    const res = await fetch('https://api.bufferapp.com/1/updates/create.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ access_token: settings.bufferApiKey, 'profile_ids[]': settings.bufferChannelId, text })
+    });
+    const data = await res.json();
+    if (data.success || data.updates) {
+      btn.textContent = '✓ 追加済';
+      showToast('Bufferに追加しました');
+      setTimeout(() => { btn.textContent = '📅 Buffer'; btn.disabled = false; }, 3000);
+    } else {
+      btn.textContent = 'エラー'; btn.disabled = false;
+      alert('Bufferエラー: ' + (data.message || '不明'));
+    }
+  } catch (err) {
+    btn.textContent = 'エラー'; btn.disabled = false;
+    alert('通信エラー: ' + err.message);
+  }
+}
+
+function handleJsonFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let chats = Array.isArray(data) ? data : (data.conversations || data.chats || []);
+      if (chats.length === 0) { alert('チャットデータが見つかりませんでした'); return; }
+      importedChats = chats;
+      renderChatList(chats);
+      document.getElementById('chatListCard').style.display = 'block';
+      document.getElementById('chatCount').textContent = chats.length + '件';
+      showToast(`${chats.length}件のチャットを読み込みました`);
+    } catch (err) { alert('JSONの解析に失敗しました: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function renderChatList(chats) {
+  document.getElementById('chatList').innerHTML = chats.map((chat, i) => {
+    const title = chat.name || chat.title || chat.subject || `チャット ${i + 1}`;
+    const raw = chat.created_at || chat.updated_at;
+    const date = raw ? new Date(raw).toLocaleDateString('ja-JP') : '';
+    return `<div class="chat-item" onclick="selectChat(${i}, this)">
+      <div class="chat-item-check" id="ck-${i}">　</div>
+      <div class="chat-item-title">${title}</div>
+      <div class="chat-item-date">${date}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectChat(idx, el) {
+  document.querySelectorAll('.chat-item').forEach(c => { c.classList.remove('selected'); });
+  el.classList.add('selected');
+  el.querySelector('.chat-item-check').textContent = '✓';
+  selectedChatIdx = idx;
+}
+
+function loadSelectedChat() {
+  if (selectedChatIdx < 0) { alert('チャットを選択してください'); return; }
+  const chat = importedChats[selectedChatIdx];
+  const messages = chat.chat_messages || chat.messages || chat.conversation || [];
+  let text = '';
+  if (messages.length > 0) {
+    text = messages.map(m => {
+      const role = (m.role === 'human' || m.role === 'user') ? 'User' : 'Claude';
+      const content = typeof m.content === 'string' ? m.content :
+        Array.isArray(m.content) ? m.content.map(c => c.text || '').join('') : '';
+      return `${role}: ${content}`;
+    }).join('\n\n');
+  } else {
+    text = JSON.stringify(chat, null, 2);
+  }
+  document.getElementById('chatInput').value = text;
+  switchTab('generate');
+  showToast('チャットを読み込みました');
+}
+
+function renderHistory() {
+  const c = document.getElementById('historyContainer');
+  if (history.length === 0) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◷</div>まだ履歴がありません。<br>投稿文を生成すると自動的に保存されます。</div>`;
+    return;
+  }
+  c.innerHTML = `<div class="history-list">${history.map((item, i) => `
+    <div class="history-item">
+      <div class="history-header" onclick="toggleHist(${i})">
+        <div class="history-title">${item.title}</div>
+        <div class="history-meta"><span>${Object.keys(item.posts).length}件</span><span>${item.date}</span><span id="harr-${i}">▾</span></div>
+      </div>
+      <div class="history-body" id="hb-${i}">
+        ${Object.entries(item.posts).map(([type, text]) => `
+          <div class="history-post">
+            <div class="history-post-label">${PLATFORM_CONFIG[type]?.label || type}</div>
+            <div class="history-post-text">${text}</div>
+            <div class="history-post-actions">
+              <button class="copy-btn" onclick="event.stopPropagation(); copyHistPost(this, ${JSON.stringify(text)})">コピー</button>
+              ${PLATFORM_CONFIG[type]?.isX ? `<button class="btn-x" onclick="event.stopPropagation(); postToX(${JSON.stringify(text.slice(0,280))})">𝕏 Xで投稿</button>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function toggleHist(i) {
+  const body = document.getElementById('hb-' + i);
+  const arr = document.getElementById('harr-' + i);
+  body.classList.toggle('open');
+  arr.textContent = body.classList.contains('open') ? '▴' : '▾';
+}
+
+function copyHistPost(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ コピー済'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function clearHistory() {
+  if (!confirm('履歴をすべて削除しますか？')) return;
+  history = [];
+  localStorage.setItem('snsgen_history', '[]');
+  renderHistory();
+}
+
+function loadSettings() {
+  if (settings.bufferApiKey) document.getElementById('bufferApiKey').value = settings.bufferApiKey;
+  if (settings.bufferChannelId) document.getElementById('bufferChannelId').value = settings.bufferChannelId;
+  if (settings.autoSave === false) document.getElementById('autoSave').checked = false;
+}
+
+function saveSettings() {
+  settings.bufferApiKey = document.getElementById('bufferApiKey').value;
+  settings.bufferChannelId = document.getElementById('bufferChannelId').value;
+  settings.autoSave = document.getElementById('autoSave').checked;
+  localStorage.setItem('snsgen_settings', JSON.stringify(settings));
+}
+
+async function testBuffer() {
+  const key = document.getElementById('bufferApiKey').value;
+  if (!key) { alert('APIキーを入力してください'); return; }
+  try {
+    const res = await fetch(`https://api.bufferapp.com/1/user.json?access_token=${key}`);
+    const data = await res.json();
+    if (data.id) { showToast(`✓ Buffer接続成功: ${data.name || data.id}`); }
+    else { alert('接続失敗: ' + (data.message || '不明')); }
+  } catch (err) { alert('通信エラー: ' + err.message); }
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = on;
+  btn.classList.toggle('generating', on);
+  document.getElementById('spinner').style.display = on ? 'block' : 'none';
+  document.getElementById('btnText').textContent = on ? '生成中...' : '投稿文を生成する';
+}
+
+function showError(msg) { const e = document.getElementById('errorMsg'); e.textContent = msg; e.classList.add('visible'); }
+function hideError() { document.getElementById('errorMsg').classList.remove('visible'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== API KEY =====
+function initApiKey() {
+  const saved = localStorage.getItem('snsgen_apikey') || '';
+  if (saved) {
+    document.getElementById('apikeyInput').value = saved;
+    setApiKeyStatus(true);
+  }
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apikeyInput').value.trim();
+  if (!val) { alert('APIキーを入力してください'); return; }
+  if (!val.startsWith('sk-ant-')) { alert('正しいAnthropicのAPIキーを入力してください（sk-ant- で始まります）'); return; }
+  localStorage.setItem('snsgen_apikey', val);
+  setApiKeyStatus(true);
+  showToast('APIキーを保存しました ✓');
+}
+
+function setApiKeyStatus(hasKey) {
+  const banner = document.getElementById('apikeyBanner');
+  const status = document.getElementById('apikeyStatus');
+  if (hasKey) {
+    banner.classList.add('has-key');
+    status.textContent = '✓ APIキー設定済';
+  } else {
+    banner.classList.remove('has-key');
+    status.textContent = '🔑 APIキー';
+  }
+}
+
+function getApiKey() {
+  return localStorage.getItem('snsgen_apikey') || '';
+}
+</script>
+</body>
+</html>

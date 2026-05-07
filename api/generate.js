@@ -1,5 +1,5 @@
 export const config = { runtime: 'edge' };
-
+ 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -10,22 +10,22 @@ export default async function handler(req) {
       }
     });
   }
-
+ 
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
-
+ 
   try {
     const body = await req.json();
     const { prompt, input } = body;
-
+ 
     if (!prompt || !input) {
       return new Response(JSON.stringify({ error: 'Missing prompt or input' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
-
+ 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -34,14 +34,14 @@ export default async function handler(req) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         messages: [{ role: 'user', content: `${prompt}\n\n---\n\n${input}` }]
       })
     });
-
+ 
     const data = await response.json();
-
+ 
     return new Response(JSON.stringify(data), {
       headers: {
         'Content-Type': 'application/json',
